@@ -35,17 +35,22 @@ public class KnownProperties {
     //==========================================================================
     // Common connection parameters
     //==========================================================================
-    public static final String CONNECT_ORIGIN_HOST           = "spark.cdm.connect.origin.host";
-    public static final String CONNECT_ORIGIN_PORT           = "spark.cdm.connect.origin.port";
-    public static final String CONNECT_ORIGIN_SCB            = "spark.cdm.connect.origin.scb";
-    public static final String CONNECT_ORIGIN_USERNAME       = "spark.cdm.connect.origin.username";
-    public static final String CONNECT_ORIGIN_PASSWORD       = "spark.cdm.connect.origin.password";
+    public static final String CONNECT_ORIGIN_HOST                                 = "spark.cdm.connect.origin.host";
+    public static final String CONNECT_ORIGIN_PORT                                 = "spark.cdm.connect.origin.port";
+    public static final String CONNECT_ORIGIN_SCB                                  = "spark.cdm.connect.origin.scb";
+    public static final String CONNECT_ORIGIN_USERNAME                             = "spark.cdm.connect.origin.username";
+    public static final String CONNECT_ORIGIN_PASSWORD                             = "spark.cdm.connect.origin.password";
+    public static final String CONNECT_ORIGIN_LOCAL_CONNECTIONS_PER_EXECUTOR       = "spark.cmd.connect.origin.connection.localConnectionsPerExecutor";
+    public static final String CONNECT_ORIGIN_REMOTE_CONNECTIONS_PER_EXECUTOR      = "spark.cmd.connect.origin.connection.remoteConnectionsPerExecutor";
 
-    public static final String CONNECT_TARGET_HOST           = "spark.cdm.connect.target.host";
-    public static final String CONNECT_TARGET_PORT           = "spark.cdm.connect.target.port";
-    public static final String CONNECT_TARGET_SCB            = "spark.cdm.connect.target.scb";
-    public static final String CONNECT_TARGET_USERNAME       = "spark.cdm.connect.target.username";
-    public static final String CONNECT_TARGET_PASSWORD       = "spark.cdm.connect.target.password";
+    public static final String CONNECT_TARGET_HOST                                 = "spark.cdm.connect.target.host";
+    public static final String CONNECT_TARGET_PORT                                 = "spark.cdm.connect.target.port";
+    public static final String CONNECT_TARGET_SCB                                  = "spark.cdm.connect.target.scb";
+    public static final String CONNECT_TARGET_USERNAME                             = "spark.cdm.connect.target.username";
+    public static final String CONNECT_TARGET_PASSWORD                             = "spark.cdm.connect.target.password";
+    public static final String CONNECT_TARGET_LOCAL_CONNECTIONS_PER_EXECUTOR       = "spark.cmd.connect.target.connection.localConnectionsPerExecutor";
+    public static final String CONNECT_TARGET_REMOTE_CONNECTIONS_PER_EXECUTOR      = "spark.cmd.connect.target.connection.remoteConnectionsPerExecutor";
+
 
     static {
            types.put(CONNECT_ORIGIN_HOST, PropertyType.STRING);
@@ -57,6 +62,8 @@ public class KnownProperties {
         defaults.put(CONNECT_ORIGIN_USERNAME, "cassandra");
            types.put(CONNECT_ORIGIN_PASSWORD, PropertyType.STRING);
         defaults.put(CONNECT_ORIGIN_PASSWORD, "cassandra");
+           types.put(CONNECT_ORIGIN_LOCAL_CONNECTIONS_PER_EXECUTOR, PropertyType.STRING);
+           types.put(CONNECT_ORIGIN_REMOTE_CONNECTIONS_PER_EXECUTOR, PropertyType.STRING);
 
            types.put(CONNECT_TARGET_HOST, PropertyType.STRING);
         defaults.put(CONNECT_TARGET_HOST, "localhost");
@@ -67,6 +74,9 @@ public class KnownProperties {
         defaults.put(CONNECT_TARGET_USERNAME, "cassandra");
            types.put(CONNECT_TARGET_PASSWORD, PropertyType.STRING);
         defaults.put(CONNECT_TARGET_PASSWORD, "cassandra");
+           types.put(CONNECT_TARGET_LOCAL_CONNECTIONS_PER_EXECUTOR, PropertyType.STRING);
+           types.put(CONNECT_TARGET_REMOTE_CONNECTIONS_PER_EXECUTOR, PropertyType.STRING);
+
     }
 
     //==========================================================================

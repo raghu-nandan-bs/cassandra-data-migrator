@@ -32,6 +32,8 @@ class ConnectionFetcher(sparkContext: SparkContext, propertyHelper: PropertyHelp
         propertyHelper.getAsString(KnownProperties.CONNECT_ORIGIN_PORT),
         propertyHelper.getAsString(KnownProperties.CONNECT_ORIGIN_USERNAME),
         propertyHelper.getAsString(KnownProperties.CONNECT_ORIGIN_PASSWORD),
+        propertyHelper.getAsString(KnownProperties.CONNECT_ORIGIN_LOCAL_CONNECTIONS_PER_EXECUTOR),
+        propertyHelper.getAsString(KnownProperties.CONNECT_ORIGIN_REMOTE_CONNECTIONS_PER_EXECUTOR),
         propertyHelper.getAsString(KnownProperties.ORIGIN_TLS_ENABLED),
         propertyHelper.getAsString(KnownProperties.ORIGIN_TLS_TRUSTSTORE_PATH),
         propertyHelper.getAsString(KnownProperties.ORIGIN_TLS_TRUSTSTORE_PASSWORD),
@@ -48,6 +50,8 @@ class ConnectionFetcher(sparkContext: SparkContext, propertyHelper: PropertyHelp
         propertyHelper.getAsString(KnownProperties.CONNECT_TARGET_PORT),
         propertyHelper.getAsString(KnownProperties.CONNECT_TARGET_USERNAME),
         propertyHelper.getAsString(KnownProperties.CONNECT_TARGET_PASSWORD),
+        propertyHelper.getAsString(KnownProperties.CONNECT_TARGET_LOCAL_CONNECTIONS_PER_EXECUTOR),
+        propertyHelper.getAsString(KnownProperties.CONNECT_TARGET_REMOTE_CONNECTIONS_PER_EXECUTOR),
         propertyHelper.getAsString(KnownProperties.TARGET_TLS_ENABLED),
         propertyHelper.getAsString(KnownProperties.TARGET_TLS_TRUSTSTORE_PATH),
         propertyHelper.getAsString(KnownProperties.TARGET_TLS_TRUSTSTORE_PASSWORD),
@@ -62,16 +66,16 @@ class ConnectionFetcher(sparkContext: SparkContext, propertyHelper: PropertyHelp
   def getConnection(side: String, consistencyLevel: String): CassandraConnector = {
     val connectionDetails = getConnectionDetails(side)
     val config: SparkConf = sparkContext.getConf
-
     logger.info("PARAM --  SSL Enabled: "+connectionDetails.sslEnabled);
-
     if (connectionDetails.scbPath.nonEmpty) {
       logger.info("Connecting to "+side+" using SCB "+connectionDetails.scbPath);
       return CassandraConnector(config
         .set("spark.cassandra.auth.username", connectionDetails.username)
         .set("spark.cassandra.auth.password", connectionDetails.password)
         .set("spark.cassandra.input.consistency.level", consistencyLevel)
-        .set("spark.cassandra.connection.config.cloud.path", connectionDetails.scbPath))
+        .set("spark.cassandra.connection.config.cloud.path", connectionDetails.scbPath)
+        .set("spark.cmd.connect.target.connection.localConnectionsPerExecutor", connectionDetails.localConnectionsPerExecutor)
+        .set("spark.cmd.connect.target.connection.remoteConnectionsPerExecutor", connectionDetails.remoteConnectionsPerExecutor))
     } else if (connectionDetails.trustStorePath.nonEmpty) {
       logger.info("Connecting to "+side+" (with truststore) at "+connectionDetails.host+":"+connectionDetails.port);
 
@@ -95,16 +99,18 @@ class ConnectionFetcher(sparkContext: SparkContext, propertyHelper: PropertyHelp
         .set("spark.cassandra.connection.ssl.keyStore.path", connectionDetails.keyStorePath)
         .set("spark.cassandra.connection.ssl.trustStore.type", connectionDetails.trustStoreType)
         .set("spark.cassandra.connection.ssl.clientAuth.enabled", "true")
+        .set("spark.cmd.connect.target.connection.localConnectionsPerExecutor", connectionDetails.localConnectionsPerExecutor)
+        .set("spark.cmd.connect.target.connection.remoteConnectionsPerExecutor", connectionDetails.remoteConnectionsPerExecutor)
       )
     } else {
-      logger.info("Connecting to "+side+" at "+connectionDetails.host+":"+connectionDetails.port);
-
       return CassandraConnector(config.set("spark.cassandra.auth.username", connectionDetails.username)
         .set("spark.cassandra.connection.ssl.enabled", connectionDetails.sslEnabled)
         .set("spark.cassandra.auth.password", connectionDetails.password)
         .set("spark.cassandra.input.consistency.level", consistencyLevel)
         .set("spark.cassandra.connection.host", connectionDetails.host)
-        .set("spark.cassandra.connection.port", connectionDetails.port))
+        .set("spark.cassandra.connection.port", connectionDetails.port)
+        .set("spark.cmd.connect.target.connection.localConnectionsPerExecutor", connectionDetails.localConnectionsPerExecutor)
+        .set("spark.cmd.connect.target.connection.remoteConnectionsPerExecutor", connectionDetails.remoteConnectionsPerExecutor))
     }
   }
 }

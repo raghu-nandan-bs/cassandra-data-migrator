@@ -21,6 +21,8 @@ case class ConnectionDetails(
                               port: String,
                               username: String,
                               password: String,
+                              localConnectionsPerExecutor: String,
+                              remoteConnectionsPerExecutor: String,
                               sslEnabled: String,
                               trustStorePath: String,
                               trustStorePassword: String,
