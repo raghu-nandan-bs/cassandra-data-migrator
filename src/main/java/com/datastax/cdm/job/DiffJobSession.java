@@ -17,6 +17,7 @@ package com.datastax.cdm.job;
 
 import com.datastax.cdm.cql.statement.OriginSelectByPartitionRangeStatement;
 import com.datastax.cdm.cql.statement.TargetSelectByPKStatement;
+import com.datastax.cdm.cql.statement.TargetSelectByPartitionRangeStatement;
 import com.datastax.cdm.data.CqlData;
 import com.datastax.cdm.data.DataUtility;
 import com.datastax.cdm.data.EnhancedPK;
@@ -40,6 +41,7 @@ import org.slf4j.LoggerFactory;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
@@ -110,7 +112,8 @@ public class DiffJobSession extends CopyJobSession {
 
     public void getDataAndDiff(BigInteger min, BigInteger max) {
         ThreadContext.put(THREAD_CONTEXT_LABEL, getThreadLabel(min, max));
-        logger.info("ThreadID: {} Processing min: {} max: {}", Thread.currentThread().getId(), min, max);
+        long tid = Thread.currentThread().getId();
+        logger.info("ThreadID: {} Processing min: {} max: {}", tid, min, max);
         boolean done = false;
         int maxAttempts = maxRetries + 1;
         for (int attempts = 1; attempts <= maxAttempts && !done; attempts++) {
@@ -119,21 +122,43 @@ public class DiffJobSession extends CopyJobSession {
 
                 PKFactory pkFactory = originSession.getPKFactory();
                 OriginSelectByPartitionRangeStatement originSelectByPartitionRangeStatement = originSession.getOriginSelectByPartitionRangeStatement();
-                ResultSet resultSet = originSelectByPartitionRangeStatement.execute(originSelectByPartitionRangeStatement.bind(min, max));
+                TargetSelectByPartitionRangeStatement targetSelectByPartitionRangeStatement = targetSession.getTargetSelectByPartitionRangeStatement();
+
+                ResultSet originResultSet = originSelectByPartitionRangeStatement.execute(originSelectByPartitionRangeStatement.bind(min, max));
+                ResultSet targetResultSet = targetSelectByPartitionRangeStatement.execute(targetSelectByPartitionRangeStatement.bind(min, max));
+
                 TargetSelectByPKStatement targetSelectByPKStatement = targetSession.getTargetSelectByPKStatement();
                 Integer fetchSizeInRows = originSession.getCqlTable().getFetchSizeInRows();
 
+                HashMap<EnhancedPK, Row> targetRowsInSlice = new HashMap<>();
+                logger.info("{} making hashmap for target rows: {}",tid, targetResultSet.all().size());
+
+                /*StreamSupport.stream(targetResultSet.spliterator(), false).forEach(targetRow -> {
+                    EnhancedPK targetPK = pkFactory.getTargetPK(targetRow);
+                    // add targetPK : targetRow to targetRowsInSlice
+                    targetRowsInSlice.put(targetPK, targetRow);
+                });
+                HashMap<EnhancedPK, Row> originRowsInSlice = new HashMap<>();
+                logger.info("{} making hashmap for origin rows: {}",tid, originResultSet.all().size());
+                StreamSupport.stream(originResultSet.spliterator(), false).forEach(originRow -> {
+                    EnhancedPK originPK = pkFactory.getTargetPK(originRow);
+                    logger.info("originPK: {}", originPK);
+                    originRowsInSlice.put(originPK, originRow);
+                });
+                logger.info("origin row count for slice: {}", fetchSizeInRows);
+                logger.info("target row count for slice (using maps): {}", targetRowsInSlice.size());
+                logger.info("origin row count for slice (using maps): {}", originRowsInSlice.size());*/
+
                 List<Record> recordsToDiff = new ArrayList<>(fetchSizeInRows);
-                StreamSupport.stream(resultSet.spliterator(), false).forEach(originRow -> {
+                StreamSupport.stream(originResultSet.spliterator(), false).forEach(originRow -> {
+                    logger.info("inspecting origin row: {}", originRow.toString());
                     rateLimiterOrigin.acquire(1);
                     Record record = new Record(pkFactory.getTargetPK(originRow), originRow, null);
                     jobCounter.threadIncrement(JobCounter.CounterType.READ);
-
                     if (originSelectByPartitionRangeStatement.shouldFilterRecord(record)) {
                         jobCounter.threadIncrement(JobCounter.CounterType.SKIPPED);
                     } else {
                         for (Record r : pkFactory.toValidRecordList(record)) {
-
                             if (guardrailEnabled) {
                                 String guardrailCheck = guardrailFeature.guardrailChecks(r);
                                 if (guardrailCheck != null && guardrailCheck != Guardrail.CLEAN_CHECK) {
@@ -206,7 +231,7 @@ public class DiffJobSession extends CopyJobSession {
             }
             return;
         }
-
+        // add a flag to avoid running isDifferent
         String diffData = isDifferent(originPK, originRow, targetRow);
         if (!diffData.isEmpty()) {
             jobCounter.threadIncrement(JobCounter.CounterType.MISMATCH);

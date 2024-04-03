@@ -3,7 +3,7 @@
 
   <groupId>datastax.cdm</groupId>
   <artifactId>cassandra-data-migrator</artifactId>
-  <version>4.1.13-SNAPSHOT</version>
+  <version>4.1.13-faster-validation</version>
   <packaging>jar</packaging>
 
   <properties>

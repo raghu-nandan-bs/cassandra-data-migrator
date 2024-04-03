@@ -96,7 +96,7 @@ public abstract class OriginSelectStatement extends BaseCdmStatement {
     public abstract BoundStatement bind(Object... binds);
     protected abstract String whereBinds();
 
-    public boolean shouldFilterRecord(Record record) {
+    public boolean  shouldFilterRecord(Record record) {
         if (null==record || !isRecordValid(record))
             return true;
 

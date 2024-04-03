@@ -31,6 +31,7 @@ import com.datastax.cdm.properties.PropertyHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.annotation.Target;
 import java.util.List;
 
 public class EnhancedSession {
@@ -64,8 +65,13 @@ public class EnhancedSession {
     }
 
     public OriginSelectByPartitionRangeStatement getOriginSelectByPartitionRangeStatement() {
-        if (!isOrigin) throw new RuntimeException("This is not an origin session");
+        // We are calling this from target session for a different workflow evaluation
+        // if (!isOrigin) throw new RuntimeException("This is not an origin session");
         return new OriginSelectByPartitionRangeStatement(propertyHelper, this);
+    }
+
+    public TargetSelectByPartitionRangeStatement getTargetSelectByPartitionRangeStatement() {
+        return new TargetSelectByPartitionRangeStatement(propertyHelper, this);
     }
 
     public OriginSelectByPKStatement getOriginSelectByPKStatement() {
