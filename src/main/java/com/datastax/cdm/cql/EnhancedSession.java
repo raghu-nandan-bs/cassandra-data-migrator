@@ -65,8 +65,7 @@ public class EnhancedSession {
     }
 
     public OriginSelectByPartitionRangeStatement getOriginSelectByPartitionRangeStatement() {
-        // We are calling this from target session for a different workflow evaluation
-        // if (!isOrigin) throw new RuntimeException("This is not an origin session");
+        if (!isOrigin) throw new RuntimeException("This is not an origin session");
         return new OriginSelectByPartitionRangeStatement(propertyHelper, this);
     }
 

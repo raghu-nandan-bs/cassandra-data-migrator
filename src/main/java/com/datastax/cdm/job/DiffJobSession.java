@@ -278,8 +278,7 @@ public class DiffJobSession extends CopyJobSession {
                     }
                     String targetColumnType = targetColumnNames.get(targetIndex);
 
-                    if (targetColumnType.toUpperCase().contains("TTL")
-                            || targetColumnType.toUpperCase().contains("WRITETIME")) {
+                    if (targetColumnType.toUpperCase().contains("TTL")) {
                         return; // there will be minor changes in TTL as read time of both
                                 // differ significantly
                     }
