@@ -40,7 +40,6 @@ public class KnownProperties {
     public static final String CONNECT_ORIGIN_SCB                                  = "spark.cdm.connect.origin.scb";
     public static final String CONNECT_ORIGIN_USERNAME                             = "spark.cdm.connect.origin.username";
     public static final String CONNECT_ORIGIN_PASSWORD                             = "spark.cdm.connect.origin.password";
-
     public static final String CONNECT_ORIGIN_LOCAL_CONNECTIONS_PER_EXECUTOR       = "spark.cmd.connect.origin.connection.localConnectionsPerExecutor";
     public static final String CONNECT_ORIGIN_REMOTE_CONNECTIONS_PER_EXECUTOR      = "spark.cmd.connect.origin.connection.remoteConnectionsPerExecutor";
 

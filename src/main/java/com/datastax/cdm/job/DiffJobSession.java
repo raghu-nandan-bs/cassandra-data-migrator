@@ -70,7 +70,11 @@ public class DiffJobSession extends CopyJobSession {
         this.jobCounter.setRegisteredTypes(JobCounter.CounterType.READ, JobCounter.CounterType.VALID, JobCounter.CounterType.MISMATCH, JobCounter.CounterType.CORRECTED_MISMATCH, JobCounter.CounterType.MISSING, JobCounter.CounterType.CORRECTED_MISSING, JobCounter.CounterType.SKIPPED);
         skipValueCheck  = propertyHelper.getBoolean(KnownProperties.SKIP_VALUE_COMPARISON);
         autoCorrectMissing = propertyHelper.getBoolean(KnownProperties.AUTOCORRECT_MISSING);
+        logger.info("PARAM -- Autocorrect Missing: {}", autoCorrectMissing);
+
         autoCorrectMismatch = propertyHelper.getBoolean(KnownProperties.AUTOCORRECT_MISMATCH);
+        logger.info("PARAM -- Autocorrect Mismatch: {}", autoCorrectMismatch);
+
         this.isCounterTable = this.originSession.getCqlTable().isCounterTable();
         this.forceCounterWhenMissing = propertyHelper.getBoolean(KnownProperties.AUTOCORRECT_MISSING_COUNTER);
         this.targetColumnNames = this.targetSession.getCqlTable().getColumnNames(false);
@@ -110,8 +114,7 @@ public class DiffJobSession extends CopyJobSession {
 
     public void getDataAndDiff(BigInteger min, BigInteger max) {
         ThreadContext.put(THREAD_CONTEXT_LABEL, getThreadLabel(min, max));
-        long tid = Thread.currentThread().getId();
-        logger.info("ThreadID: {} Processing min: {} max: {}", tid, min, max);
+        logger.info("ThreadID: {} Processing min: {} max: {}", Thread.currentThread().getId(), min, max);
         boolean done = false;
         int maxAttempts = maxRetries + 1;
         for (int attempts = 1; attempts <= maxAttempts && !done; attempts++) {
@@ -132,17 +135,19 @@ public class DiffJobSession extends CopyJobSession {
                     EnhancedPK pk = pkFactory.getTargetPK(targetRow);
                     targetRowsInSlice.put(pk, targetRow);
                 });
-                logger.info("created map of size {} with records from target DB",targetRowsInSlice.size());
+                logger.debug("created map of size {} with records from target DB",targetRowsInSlice.size());
 
                 List<Record> recordsToDiff = new ArrayList<>(fetchSizeInRows);
                 StreamSupport.stream(originResultSet.spliterator(), false).forEach(originRow -> {
                     rateLimiterOrigin.acquire(1);
                     Record record = new Record(pkFactory.getTargetPK(originRow), originRow, null);
                     jobCounter.threadIncrement(JobCounter.CounterType.READ);
+
                     if (originSelectByPartitionRangeStatement.shouldFilterRecord(record)) {
                         jobCounter.threadIncrement(JobCounter.CounterType.SKIPPED);
                     } else {
                         for (Record r : pkFactory.toValidRecordList(record)) {
+
                             if (guardrailEnabled) {
                                 String guardrailCheck = guardrailFeature.guardrailChecks(r);
                                 if (guardrailCheck != null && guardrailCheck != Guardrail.CLEAN_CHECK) {
@@ -151,6 +156,7 @@ public class DiffJobSession extends CopyJobSession {
                                     continue;
                                 }
                             }
+
                             rateLimiterTarget.acquire(1);
                             // CompletionStage<AsyncResultSet> targetResult = targetSelectByPKStatement.getAsyncResult(r.getPk());
                             Row targetResult = targetRowsInSlice.get(r.getPk());
@@ -286,11 +292,8 @@ public class DiffJobSession extends CopyJobSession {
                         String originContent = CqlData.getFormattedContent(CqlData.toType(originColumnTypes.get(originIndex)), origin);
                         String targetContent = CqlData.getFormattedContent(CqlData.toType(targetColumnTypes.get(targetIndex)), targetAsOriginType);
                         diffData.append("Target column:").append(targetColumnNames.get(targetIndex))
-                                .append("\n\torigin ").append(originRow.getFormattedContents())
-                                .append("\n\ttarget ").append(targetRow.getFormattedContents())
-                                .append("\n\t-origin[").append(originContent).append("]")
-                                .append("\n\t-target[").append(targetContent).append("]; ")
-                                .append("-----------------------------------------------");
+                                .append("-origin[").append(originContent).append("]")
+                                .append("-target[").append(targetContent).append("]; ");
                     }
                 } catch (Exception e) {
                     String exceptionName;
