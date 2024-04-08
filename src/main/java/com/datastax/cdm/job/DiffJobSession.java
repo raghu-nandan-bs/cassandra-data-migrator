@@ -238,11 +238,10 @@ public class DiffJobSession extends CopyJobSession {
                     jobCounter.threadIncrement(JobCounter.CounterType.CORRECTED_MISMATCH);
                     logger.error("Corrected mismatch row in target: {}", record.getPk());
                 }
-            } else {
-                jobCounter.threadIncrement(JobCounter.CounterType.VALID);
+                return;
             }
-            jobCounter.threadIncrement(JobCounter.CounterType.VALID);
         }
+        jobCounter.threadIncrement(JobCounter.CounterType.VALID);
     }
 
     private String isDifferent(EnhancedPK pk, Row originRow, Row targetRow) {
@@ -291,8 +290,8 @@ public class DiffJobSession extends CopyJobSession {
                         String originContent = CqlData.getFormattedContent(CqlData.toType(originColumnTypes.get(originIndex)), origin);
                         String targetContent = CqlData.getFormattedContent(CqlData.toType(targetColumnTypes.get(targetIndex)), targetAsOriginType);
                         diffData.append("Target column:").append(targetColumnNames.get(targetIndex))
-                                .append("-origin[").append(originContent).append("]")
-                                .append("-target[").append(targetContent).append("]; ");
+                                .append("-origin<<").append(new String(originContent.getBytes())).append(">>\n")
+                                .append("-target <<").append(new String(targetContent.getBytes())).append(">>; ");
                     }
                 } catch (Exception e) {
                     String exceptionName;
