@@ -127,7 +127,6 @@ public class DiffJobSession extends CopyJobSession {
 
                 ResultSet originResultSet = originSelectByPartitionRangeStatement.execute(originSelectByPartitionRangeStatement.bind(min, max));
                 ResultSet targetResultSet = targetSelectByPartitionRangeStatement.execute(targetSelectByPartitionRangeStatement.bind(min, max));
-                TargetSelectByPKStatement targetSelectByPKStatement = targetSession.getTargetSelectByPKStatement();
                 Integer fetchSizeInRows = originSession.getCqlTable().getFetchSizeInRows();
 
                 HashMap<EnhancedPK, Row> targetRowsInSlice = new HashMap<>();
