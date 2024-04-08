@@ -69,6 +69,7 @@ public class DiffJobSession extends CopyJobSession {
         super(originSession, targetSession, sc);
         this.jobCounter.setRegisteredTypes(JobCounter.CounterType.READ, JobCounter.CounterType.VALID, JobCounter.CounterType.MISMATCH, JobCounter.CounterType.CORRECTED_MISMATCH, JobCounter.CounterType.MISSING, JobCounter.CounterType.CORRECTED_MISSING, JobCounter.CounterType.SKIPPED);
         skipValueCheck  = propertyHelper.getBoolean(KnownProperties.SKIP_VALUE_COMPARISON);
+        logger.info("skipValueCheck is set to {}",skipValueCheck);
         autoCorrectMissing = propertyHelper.getBoolean(KnownProperties.AUTOCORRECT_MISSING);
         logger.info("PARAM -- Autocorrect Missing: {}", autoCorrectMissing);
 
@@ -287,7 +288,6 @@ public class DiffJobSession extends CopyJobSession {
                         logger.debug("Diff PK {}, target/origin index: {}/{} target/origin column: {}/{} target/origin value: {}/{}", pk, targetIndex, originIndex, targetColumnNames.get(targetIndex), originIndex < 0 ? "null" : originSession.getCqlTable().getColumnNames(false).get(originIndex), targetAsOriginType, origin);
                     if (null != origin &&
                             DataUtility.diff(origin, targetAsOriginType)) {
-                        logger.info("Datatype is: {}",targetColumnType);
                         String originContent = CqlData.getFormattedContent(CqlData.toType(originColumnTypes.get(originIndex)), origin);
                         String targetContent = CqlData.getFormattedContent(CqlData.toType(targetColumnTypes.get(targetIndex)), targetAsOriginType);
                         diffData.append("Target column:").append(targetColumnNames.get(targetIndex))
