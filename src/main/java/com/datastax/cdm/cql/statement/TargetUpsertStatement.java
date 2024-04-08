@@ -26,6 +26,8 @@ import com.datastax.cdm.properties.IPropertyHelper;
 import com.datastax.cdm.properties.KnownProperties;
 import com.datastax.oss.driver.api.core.cql.*;
 import com.datastax.oss.driver.api.core.type.DataType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,6 +49,8 @@ public abstract class TargetUpsertStatement extends BaseCdmStatement {
     protected boolean usingWriteTime = false;
     protected ConstantColumns constantColumnFeature;
     protected ExplodeMap explodeMapFeature;
+
+    public Logger logger = LoggerFactory.getLogger(this.getClass().getName());
 
     protected int bindIndex = 0;
     protected int explodeMapKeyIndex = -1;

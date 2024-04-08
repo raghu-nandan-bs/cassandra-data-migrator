@@ -21,6 +21,7 @@ import com.datastax.cdm.properties.KnownProperties;
 import com.datastax.cdm.properties.PropertyHelper;
 import com.datastax.oss.driver.api.core.cql.BoundStatement;
 import com.datastax.oss.driver.api.core.cql.Row;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,10 +47,8 @@ public class TargetInsertStatement extends TargetUpsertStatement {
             throw new RuntimeException("Origin row is null");
         if (usingCounter)
             throw new RuntimeException("Cannot INSERT onto a counter table, use UPDATE instead");
-
         checkBindInputs(ttl, writeTime, explodeMapKey, explodeMapValue);
         BoundStatement boundStatement = prepareStatement().bind();
-
         int currentBindIndex = 0;
         Object bindValue = null;
 
@@ -87,7 +86,6 @@ public class TargetInsertStatement extends TargetUpsertStatement {
         if (usingWriteTime) {
             boundStatement = boundStatement.set(currentBindIndex++, writeTime, Long.class);
         }
-
         return boundStatement
                 .setConsistencyLevel(cqlTable.getWriteConsistencyLevel())
                 .setTimeout(Duration.ofSeconds(10));
@@ -118,9 +116,7 @@ public class TargetInsertStatement extends TargetUpsertStatement {
                 " (" + PropertyHelper.asString(bindColumnNames, KnownProperties.PropertyType.STRING_LIST) +
                 (null!=constantColumnNames && !constantColumnNames.isEmpty() ? "," + PropertyHelper.asString(constantColumnNames, KnownProperties.PropertyType.STRING_LIST) : "") +
                 ") VALUES (" + valuesList + ")";
-
         targetUpdateCQL += usingTTLTimestamp();
-
         return targetUpdateCQL;
     }
 
@@ -130,6 +126,9 @@ public class TargetInsertStatement extends TargetUpsertStatement {
 
         for (String targetColumnName : this.targetColumnNames) {
             if (null==constantColumnNames || !constantColumnNames.contains(targetColumnName)) {
+                if (targetColumnName.contains("TTL(") || targetColumnName.contains("WRITETIME(") ) {
+                    continue;
+                }
                 this.bindColumnNames.add(targetColumnName);
                 this.bindColumnIndexes.add(this.targetColumnNames.indexOf(targetColumnName));
             }
