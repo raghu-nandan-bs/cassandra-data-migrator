@@ -290,7 +290,7 @@ public class DiffJobSession extends CopyJobSession {
                         String targetContent = CqlData.getFormattedContent(CqlData.toType(targetColumnTypes.get(targetIndex)), targetAsOriginType);
                         diffData.append("Target column:").append(targetColumnNames.get(targetIndex))
                                 .append("-origin[").append(originContent).append("]")
-                                .append("-target[").append(targetContent).append("]; ");;
+                                .append("-target[").append(targetContent).append("]; ");
                     }
                 } catch (Exception e) {
                     String exceptionName;
