@@ -21,6 +21,7 @@ import com.datastax.cdm.properties.KnownProperties;
 import com.datastax.cdm.properties.PropertyHelper;
 import com.datastax.oss.driver.api.core.cql.BoundStatement;
 import com.datastax.oss.driver.api.core.cql.Row;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -130,6 +131,9 @@ public class TargetInsertStatement extends TargetUpsertStatement {
 
         for (String targetColumnName : this.targetColumnNames) {
             if (null==constantColumnNames || !constantColumnNames.contains(targetColumnName)) {
+                if (targetColumnName.contains("TTL(") || targetColumnName.contains("WRITETIME(") ) {
+                    continue;
+                }
                 this.bindColumnNames.add(targetColumnName);
                 this.bindColumnIndexes.add(this.targetColumnNames.indexOf(targetColumnName));
             }

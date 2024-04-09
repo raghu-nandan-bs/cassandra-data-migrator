@@ -17,6 +17,7 @@ package com.datastax.cdm.job;
 
 import com.datastax.cdm.cql.statement.OriginSelectByPartitionRangeStatement;
 import com.datastax.cdm.cql.statement.TargetSelectByPKStatement;
+import com.datastax.cdm.cql.statement.TargetSelectByPartitionRangeStatement;
 import com.datastax.cdm.data.CqlData;
 import com.datastax.cdm.data.DataUtility;
 import com.datastax.cdm.data.EnhancedPK;
@@ -38,13 +39,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
+
+import static java.util.stream.Collectors.toMap;
 
 public class DiffJobSession extends CopyJobSession {
     protected final Boolean autoCorrectMissing;
@@ -56,6 +57,8 @@ public class DiffJobSession extends CopyJobSession {
     private final List<DataType> originColumnTypes;
     private final int explodeMapKeyIndex;
     private final int explodeMapValueIndex;
+
+    private final boolean skipValueCheck;
     private final List<Integer> constantColumnIndexes;
     public Logger logger = LoggerFactory.getLogger(this.getClass().getName());
     boolean logDebug = logger.isDebugEnabled();
@@ -64,7 +67,8 @@ public class DiffJobSession extends CopyJobSession {
     public DiffJobSession(CqlSession originSession, CqlSession targetSession, SparkConf sc) {
         super(originSession, targetSession, sc);
         this.jobCounter.setRegisteredTypes(JobCounter.CounterType.READ, JobCounter.CounterType.VALID, JobCounter.CounterType.MISMATCH, JobCounter.CounterType.CORRECTED_MISMATCH, JobCounter.CounterType.MISSING, JobCounter.CounterType.CORRECTED_MISSING, JobCounter.CounterType.SKIPPED);
-
+        skipValueCheck  = propertyHelper.getBoolean(KnownProperties.SKIP_VALUE_COMPARISON);
+        logger.info("skipValueCheck is set to {}",skipValueCheck);
         autoCorrectMissing = propertyHelper.getBoolean(KnownProperties.AUTOCORRECT_MISSING);
         logger.info("PARAM -- Autocorrect Missing: {}", autoCorrectMissing);
 
@@ -119,12 +123,34 @@ public class DiffJobSession extends CopyJobSession {
 
                 PKFactory pkFactory = originSession.getPKFactory();
                 OriginSelectByPartitionRangeStatement originSelectByPartitionRangeStatement = originSession.getOriginSelectByPartitionRangeStatement();
-                ResultSet resultSet = originSelectByPartitionRangeStatement.execute(originSelectByPartitionRangeStatement.bind(min, max));
-                TargetSelectByPKStatement targetSelectByPKStatement = targetSession.getTargetSelectByPKStatement();
+                TargetSelectByPartitionRangeStatement targetSelectByPartitionRangeStatement = targetSession.getTargetSelectByPartitionRangeStatement();
+
+                ResultSet originResultSet = originSelectByPartitionRangeStatement.execute(originSelectByPartitionRangeStatement.bind(min, max));
+                /*
+                * Assumption is that for every range scan on source and target
+                * both results contains same set of rows.
+                * This typically is the case when both partitions are the same.
+                *
+                * Please verify that this is the case before running this flavour of
+                * Cassandra Data Migrator.
+                * */
+                ResultSet targetResultSet = targetSelectByPartitionRangeStatement.execute(targetSelectByPartitionRangeStatement.bind(min, max));
                 Integer fetchSizeInRows = originSession.getCqlTable().getFetchSizeInRows();
 
+                /*HashMap<EnhancedPK, Row> targetRowsInSlice = new HashMap<>();
+                StreamSupport.stream(targetResultSet.spliterator(), false).forEach(targetRow -> {
+                    EnhancedPK pk = pkFactory.getTargetPK(targetRow);
+                    targetRowsInSlice.put(pk, targetRow);
+                });*/
+
+                Map<EnhancedPK, Row> targetRowsInSlice = StreamSupport.stream(targetResultSet.spliterator(), false)
+                        .collect(toMap(pkFactory::getTargetPK, v -> v));
+
+
+                logger.debug("created map of size {} with records from target DB",targetRowsInSlice.size());
+
                 List<Record> recordsToDiff = new ArrayList<>(fetchSizeInRows);
-                StreamSupport.stream(resultSet.spliterator(), false).forEach(originRow -> {
+                StreamSupport.stream(originResultSet.spliterator(), false).forEach(originRow -> {
                     rateLimiterOrigin.acquire(1);
                     Record record = new Record(pkFactory.getTargetPK(originRow), originRow, null);
                     jobCounter.threadIncrement(JobCounter.CounterType.READ);
@@ -144,12 +170,17 @@ public class DiffJobSession extends CopyJobSession {
                             }
 
                             rateLimiterTarget.acquire(1);
-                            CompletionStage<AsyncResultSet> targetResult = targetSelectByPKStatement.getAsyncResult(r.getPk());
-
+                            // CompletionStage<AsyncResultSet> targetResult = targetSelectByPKStatement.getAsyncResult(r.getPk());
+                            Row targetResult = targetRowsInSlice.get(r.getPk());
                             if (null == targetResult) {
-                                jobCounter.threadIncrement(JobCounter.CounterType.SKIPPED);
+                                r.setTargetRow(null);
+                                recordsToDiff.add(r);
+                                // Donot skip, this corresponds missing record in target
+                                //logger.error("unable to find record in target for pk: {}",r.getPk());
+                                //jobCounter.threadIncrement(JobCounter.CounterType.SKIPPED);
                             } else {
-                                r.setAsyncTargetRow(targetResult);
+                                // r.setAsyncTargetRow(targetResult);
+                                r.setTargetRow(targetResult);
                                 recordsToDiff.add(r);
                                 if (recordsToDiff.size() > fetchSizeInRows) {
                                     diffAndClear(recordsToDiff);
@@ -178,7 +209,7 @@ public class DiffJobSession extends CopyJobSession {
             try {
                 diff(record);
             } catch (Exception e) {
-                logger.error("Could not perform diff for key {}: {}", record.getPk(), e);
+                logger.error("Could not perform diff for key {}: {}\n{}", record.getPk(), e, e.getStackTrace());
             }
         }
         recordsToDiff.clear();
@@ -200,27 +231,29 @@ public class DiffJobSession extends CopyJobSession {
             //correct data
             if (autoCorrectMissing) {
                 rateLimiterTarget.acquire(1);
+                logger.info("Attempting to insert data into target: {}", record.getPk());
                 targetSession.getTargetUpsertStatement().putRecord(record);
                 jobCounter.threadIncrement(JobCounter.CounterType.CORRECTED_MISSING);
                 logger.error("Inserted missing row in target: {}", record.getPk());
             }
             return;
         }
+        if (!skipValueCheck) {
+            String diffData = isDifferent(originPK, originRow, targetRow);
+            if (!diffData.isEmpty()) {
+                jobCounter.threadIncrement(JobCounter.CounterType.MISMATCH);
+                logger.error("Mismatch row found for key: {} Mismatch: {}", record.getPk(), diffData);
 
-        String diffData = isDifferent(originPK, originRow, targetRow);
-        if (!diffData.isEmpty()) {
-            jobCounter.threadIncrement(JobCounter.CounterType.MISMATCH);
-            logger.error("Mismatch row found for key: {} Mismatch: {}", record.getPk(), diffData);
-
-            if (autoCorrectMismatch) {
-                rateLimiterTarget.acquire(1);
-                targetSession.getTargetUpsertStatement().putRecord(record);
-                jobCounter.threadIncrement(JobCounter.CounterType.CORRECTED_MISMATCH);
-                logger.error("Corrected mismatch row in target: {}", record.getPk());
+                if (autoCorrectMismatch) {
+                    rateLimiterTarget.acquire(1);
+                    targetSession.getTargetUpsertStatement().putRecord(record);
+                    jobCounter.threadIncrement(JobCounter.CounterType.CORRECTED_MISMATCH);
+                    logger.error("Corrected mismatch row in target: {}", record.getPk());
+                }
+                return;
             }
-        } else {
-            jobCounter.threadIncrement(JobCounter.CounterType.VALID);
         }
+        jobCounter.threadIncrement(JobCounter.CounterType.VALID);
     }
 
     private String isDifferent(EnhancedPK pk, Row originRow, Row targetRow) {
@@ -255,7 +288,12 @@ public class DiffJobSession extends CopyJobSession {
                     } else {
                         throw new RuntimeException("Target column \"" + targetColumnNames.get(targetIndex) + "\" at index " + targetIndex + " cannot be found on Origin, and is neither a constant column (indexes:" + constantColumnIndexes + ") nor an explode map column (keyIndex:" + explodeMapKeyIndex + ", valueIndex:" + explodeMapValueIndex + ")");
                     }
+                    String targetColumnType = targetColumnNames.get(targetIndex);
 
+                    if (targetColumnType.toUpperCase().contains("TTL")) {
+                        return; // there will be minor changes in TTL as read time of both
+                                // differ significantly
+                    }
                     if (logDebug)
                         logger.debug("Diff PK {}, target/origin index: {}/{} target/origin column: {}/{} target/origin value: {}/{}", pk, targetIndex, originIndex, targetColumnNames.get(targetIndex), originIndex < 0 ? "null" : originSession.getCqlTable().getColumnNames(false).get(originIndex), targetAsOriginType, origin);
                     if (null != origin &&

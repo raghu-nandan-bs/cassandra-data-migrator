@@ -49,7 +49,6 @@ public class WritetimeTTL extends AbstractFeature  {
         this.autoTTLNames = propertyHelper.getBoolean(KnownProperties.ORIGIN_TTL_AUTO);
         this.ttlNames = getTTLNames(propertyHelper);
         if (null!=this.ttlNames && !this.ttlNames.isEmpty()) {
-            logger.info("PARAM -- TTLCols: {}", ttlNames);
             this.autoTTLNames = false;
         }
 
@@ -141,6 +140,9 @@ public class WritetimeTTL extends AbstractFeature  {
 
         validateTTLColumns(originTable);
         validateWritetimeColumns(originTable);
+
+        validateTTLColumns(targetTable);
+        validateWritetimeColumns(targetTable);
 
         if (hasWriteTimestampFilter && (null==writetimeNames || writetimeNames.isEmpty())) {
             logger.error("WriteTimestamp filter is configured but no WriteTimestamp columns are defined");

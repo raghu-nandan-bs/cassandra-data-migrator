@@ -19,6 +19,8 @@ import com.datastax.cdm.cql.EnhancedSession;
 import com.datastax.cdm.properties.IPropertyHelper;
 import com.datastax.cdm.schema.CqlTable;
 import com.datastax.oss.driver.api.core.cql.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +31,7 @@ public class BaseCdmStatement {
     protected CqlTable cqlTable;
     protected String statement = "";
     protected EnhancedSession session;
+    public final Logger logger = LoggerFactory.getLogger(this.getClass().getName());
 
     protected List<String> resultColumns = new ArrayList<>();
 

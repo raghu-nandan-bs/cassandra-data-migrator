@@ -129,6 +129,7 @@ public class KnownProperties {
     public static final String MAX_RETRIES                      = "spark.cdm.perfops.errorLimit";
     public static final String PRINT_STATS_AFTER                = "spark.cdm.perfops.printStatsAfter";
     public static final String PRINT_STATS_PER_PART             = "spark.cdm.perfops.printStatsPerPart";
+    public static final String SKIP_VALUE_COMPARISON            = "spark.cdm.perfops.skipDataValidation";
 
     static {
            types.put(AUTOCORRECT_MISSING, PropertyType.BOOLEAN);
@@ -155,6 +156,8 @@ public class KnownProperties {
         defaults.put(PRINT_STATS_AFTER, "100000");
            types.put(PRINT_STATS_PER_PART, PropertyType.BOOLEAN);
         defaults.put(PRINT_STATS_PER_PART, "false");
+           types.put(SKIP_VALUE_COMPARISON, PropertyType.BOOLEAN);
+        defaults.put(SKIP_VALUE_COMPARISON, "false");
            types.put(PERF_FETCH_SIZE, PropertyType.NUMBER);
         defaults.put(PERF_FETCH_SIZE, "1000");
            types.put(MAX_RETRIES, PropertyType.NUMBER);
