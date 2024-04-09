@@ -39,14 +39,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
+
+import static java.util.stream.Collectors.toMap;
 
 public class DiffJobSession extends CopyJobSession {
     protected final Boolean autoCorrectMissing;
@@ -127,14 +126,27 @@ public class DiffJobSession extends CopyJobSession {
                 TargetSelectByPartitionRangeStatement targetSelectByPartitionRangeStatement = targetSession.getTargetSelectByPartitionRangeStatement();
 
                 ResultSet originResultSet = originSelectByPartitionRangeStatement.execute(originSelectByPartitionRangeStatement.bind(min, max));
+                /*
+                * Assumption is that for every range scan on source and target
+                * both results contains same set of rows.
+                * This typically is the case when both partitions are the same.
+                *
+                * Please verify that this is the case before running this flavour of
+                * Cassandra Data Migrator.
+                * */
                 ResultSet targetResultSet = targetSelectByPartitionRangeStatement.execute(targetSelectByPartitionRangeStatement.bind(min, max));
                 Integer fetchSizeInRows = originSession.getCqlTable().getFetchSizeInRows();
 
-                HashMap<EnhancedPK, Row> targetRowsInSlice = new HashMap<>();
+                /*HashMap<EnhancedPK, Row> targetRowsInSlice = new HashMap<>();
                 StreamSupport.stream(targetResultSet.spliterator(), false).forEach(targetRow -> {
                     EnhancedPK pk = pkFactory.getTargetPK(targetRow);
                     targetRowsInSlice.put(pk, targetRow);
-                });
+                });*/
+
+                Map<EnhancedPK, Row> targetRowsInSlice = StreamSupport.stream(targetResultSet.spliterator(), false)
+                        .collect(toMap(pkFactory::getTargetPK, v -> v));
+
+
                 logger.debug("created map of size {} with records from target DB",targetRowsInSlice.size());
 
                 List<Record> recordsToDiff = new ArrayList<>(fetchSizeInRows);
